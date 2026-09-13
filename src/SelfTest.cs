@@ -27,11 +27,31 @@ static class SelfTest {
             using(var form=new MainWindow(store,true))
             using(var bitmap=new System.Drawing.Bitmap(form.Width,form.Height)) {
                 form.ShowInTaskbar=false; form.Opacity=0; form.Show(); form.Render(); System.Windows.Forms.Application.DoEvents();
+                var layout=form.Controls.OfType<System.Windows.Forms.TableLayoutPanel>().Single();
+                var grid=layout.Controls.OfType<System.Windows.Forms.DataGridView>().Single();
+                Check(grid.SelectedRows.Count==0,"No implicit termination target");
+                grid.Rows[0].Selected=true;
+                string selected=((Usage)grid.SelectedRows[0].Tag).Path;
+                store.Add("download.exe","C:\\download.exe",104857600,false,DateTime.Now);
+                form.Render();
+                Check(grid.SelectedRows.Count==1 && ((Usage)grid.SelectedRows[0].Tag).Path==selected,"Selection identity survives live reorder");
                 form.DrawToBitmap(bitmap,new System.Drawing.Rectangle(0,0,form.Width,form.Height));
                 bitmap.Save(Path.Combine(folder,"ui-smoke.png"));
                 form.Close();
             }
-            File.WriteAllText(output,"PASS: daily separation, upload/download attribution, rate reset, persistence, units, backup recovery, UI rendering.\r\nTest data: "+folder);
+            using(var current=System.Diagnostics.Process.GetCurrentProcess()) Check(ProcessTarget.Open(current,System.Windows.Forms.Application.ExecutablePath)==null,"Self-termination blocked");
+            using(var child=System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(System.Windows.Forms.Application.ExecutablePath,"--termination-test-child") {UseShellExecute=false,CreateNoWindow=true})) {
+                try {
+                    Check(ProcessTarget.Open(child,"C:\\not-the-selected-app.exe")==null,"Mismatched executable rejected");
+                    using(var target=ProcessTarget.Open(System.Diagnostics.Process.GetProcessById(child.Id),System.Windows.Forms.Application.ExecutablePath)) {
+                        Check(target!=null,"Owned test child is eligible");
+                        Check(target.End(),"Terminate test child");
+                        Check(child.WaitForExit(5000),"Target process exited");
+                        Check(!target.End(),"Already exited target handled");
+                    }
+                } finally { if(!child.HasExited) { child.Kill(); child.WaitForExit(5000); } }
+            }
+            File.WriteAllText(output,"PASS: accounting, persistence, backup recovery, UI rendering, stable selection, self-protection, executable identity check, real child-process termination, already-exited handling.\r\nTest data: "+folder);
         } catch(Exception ex) { File.WriteAllText(output,"FAIL: "+ex); Environment.ExitCode=1; }
     }
     public static void Capture(string output) {
