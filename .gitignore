@@ -1,0 +1,15 @@
+# Local verification output and usage records
+test-data-*/
+self-test.txt
+capture-test.txt
+capture-usage.json*
+usage.json*
+*.tmp
+
+# Local publishing checkout
+.publish-repo/
+
+# IDE files
+.vs/
+*.user
+*.suo
