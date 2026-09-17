@@ -8,6 +8,34 @@ using System.Threading;
 namespace SuperiorOneNet {
 static class SelfTest {
     static void Check(bool value,string label) { if(!value) throw new Exception(label); }
+    public static void Preview(string output) {
+        try {
+            output=Path.GetFullPath(output);
+            string folder=Path.Combine(Path.GetDirectoryName(output),"test-data-preview-"+Guid.NewGuid().ToString("N"));
+            var store=new TrafficStore(Path.Combine(folder,"usage.json"));
+            string[] apps={"msedge.exe","Steam.exe","OneDrive.exe","Discord.exe","Spotify.exe","Windows Update"};
+            long[] downloaded={1845493760,8589934592,419430400,91226112,284164096,104857600};
+            long[] uploaded={134217728,24641536,671088640,46137344,3145728,1048576};
+            long[] down={2621440,6815744,393216,18432,245760,0};
+            long[] up={81920,24576,1392640,45056,4096,0};
+            var samples=new System.Collections.Generic.Dictionary<string,Rate>();
+            for(int i=0;i<apps.Length;i++) {
+                string path="C:\\Preview\\"+apps[i];
+                store.Add(apps[i],path,downloaded[i],false,DateTime.Now); store.Add(apps[i],path,uploaded[i],true,DateTime.Now);
+                if(down[i]+up[i]>0) samples[path]=new Rate {Name=apps[i],Path=path,Down=down[i],Up=up[i]};
+            }
+            using(var form=new MainWindow(store,true)) {
+                form.ShowInTaskbar=false; form.Opacity=0; form.Show();
+                form.SetPreviewRates(samples);
+                for(int i=0;i<60;i++) { double wave=0.55+Math.Sin(i*.29)*.13+Math.Sin(i*.83)*.05; form.AddPreviewSample(12582912*wave,2097152*(.5+Math.Cos(i*.37)*.14)); }
+                System.Windows.Forms.Application.DoEvents();
+                using(var bitmap=new System.Drawing.Bitmap(form.Width,form.Height)) { form.DrawToBitmap(bitmap,new System.Drawing.Rectangle(0,0,form.Width,form.Height)); bitmap.Save(output); }
+                form.Size=form.MinimumSize; System.Windows.Forms.Application.DoEvents();
+                using(var bitmap=new System.Drawing.Bitmap(form.Width,form.Height)) { form.DrawToBitmap(bitmap,new System.Drawing.Rectangle(0,0,form.Width,form.Height)); bitmap.Save(Path.Combine(Path.GetDirectoryName(output),Path.GetFileNameWithoutExtension(output)+"-compact.png")); }
+                form.Close();
+            }
+        } catch(Exception ex) { File.WriteAllText(output+".error.txt",ex.ToString()); Environment.ExitCode=1; }
+    }
     public static void Run(string output) {
         try {
             string folder=Path.Combine(Path.GetDirectoryName(Path.GetFullPath(output)),"test-data-"+Guid.NewGuid().ToString("N"));

@@ -1,5 +1,7 @@
 # Local verification output and usage records
 test-data-*/
+test-data-*.png
+test-data-*.error.txt
 self-test.txt
 capture-test.txt
 capture-usage.json*
