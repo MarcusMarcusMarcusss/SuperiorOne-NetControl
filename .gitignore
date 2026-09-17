@@ -10,6 +10,7 @@ usage.json*
 
 # Local publishing checkout
 .publish-repo/
+dist-update/
 
 # IDE files
 .vs/
